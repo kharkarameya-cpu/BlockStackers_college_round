@@ -1,5 +1,6 @@
 import { CalibrationProfile, InteractionMode, TrackingTelemetry } from './tracking';
 import { PageAccessibilityContext } from './ai';
+import { ParsedVoiceCommand } from './intent';
 
 export type MessageType =
   | 'POSE_UPDATE'
@@ -21,7 +22,11 @@ export type MessageType =
   | 'PONG'
   | 'AUDIO_LOG_ENTRY'
   | 'GET_AUDIO_LOGS'
-  | 'CLEAR_AUDIO_LOGS';
+  | 'CLEAR_AUDIO_LOGS'
+  | 'VOICE_COMMAND_DETECTED'
+  | 'EXECUTE_VOICE_COMMAND'
+  | 'START_SPEECH'
+  | 'STOP_SPEECH';
 
 export interface BaseMessage {
   type: MessageType;
@@ -146,6 +151,24 @@ export interface ClearAudioLogsMessage extends BaseMessage {
   type: 'CLEAR_AUDIO_LOGS';
 }
 
+export interface VoiceCommandDetectedMessage extends BaseMessage {
+  type: 'VOICE_COMMAND_DETECTED';
+  command: ParsedVoiceCommand;
+}
+
+export interface ExecuteVoiceCommandMessage extends BaseMessage {
+  type: 'EXECUTE_VOICE_COMMAND';
+  command: ParsedVoiceCommand;
+}
+
+export interface StartSpeechMessage extends BaseMessage {
+  type: 'START_SPEECH';
+}
+
+export interface StopSpeechMessage extends BaseMessage {
+  type: 'STOP_SPEECH';
+}
+
 export type ExtensionMessage =
   | PoseUpdateMessage
   | TrackingStatusMessage
@@ -166,5 +189,9 @@ export type ExtensionMessage =
   | PongMessage
   | AudioLogMessage
   | GetAudioLogsMessage
-  | ClearAudioLogsMessage;
+  | ClearAudioLogsMessage
+  | VoiceCommandDetectedMessage
+  | ExecuteVoiceCommandMessage
+  | StartSpeechMessage
+  | StopSpeechMessage;
 

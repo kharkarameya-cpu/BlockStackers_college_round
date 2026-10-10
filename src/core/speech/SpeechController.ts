@@ -70,16 +70,39 @@ export class SpeechController {
       this.recognition.onstart = () => {
         this.isListening = true;
         this.notifyState();
+        AudioLogger.getInstance().log({
+          type: 'STATUS',
+          level: 'INFO',
+          message: 'Web Speech API listening started 🎙️',
+        });
       };
 
       this.recognition.onend = () => {
-        if (this.autoRestart && this.isListening) {
-          try {
-            this.recognition.start();
-          } catch {
-            this.isListening = false;
-            this.notifyState();
-          }
+        if (this.autoRestart) {
+          // In Chromium, restarting immediately inside onend throws "recognition has already started".
+          // A 250ms debounce window allows the native engine to cleanly finalize the previous session.
+          setTimeout(() => {
+            if (this.autoRestart) {
+              try {
+                this.recognition.start();
+                this.isListening = true;
+              } catch (e: any) {
+                // If native engine is still settling, retry once after 500ms
+                if (e?.name !== 'InvalidStateError') {
+                  setTimeout(() => {
+                    if (this.autoRestart) {
+                      try {
+                        this.recognition.start();
+                        this.isListening = true;
+                      } catch {
+                        // Will restart on next interaction
+                      }
+                    }
+                  }, 500);
+                }
+              }
+            }
+          }, 250);
         } else {
           this.isListening = false;
           this.notifyState();
@@ -89,6 +112,21 @@ export class SpeechController {
       this.recognition.onerror = (event: any) => {
         if (event.error === 'no-speech') return; // Silence is normal
         const errMsg = event.error || 'Speech recognition error';
+        if (event.error === 'not-allowed') {
+          AudioLogger.getInstance().log({
+            type: 'ERROR',
+            level: 'ERROR',
+            message: 'Microphone permission denied. Click the extension icon to enable microphone.',
+            data: { error: event.error },
+          });
+        } else {
+          AudioLogger.getInstance().log({
+            type: 'ERROR',
+            level: 'WARN',
+            message: `Speech recognition notice: ${errMsg}`,
+            data: { error: errMsg },
+          });
+        }
         if (this.callbacks.onError) this.callbacks.onError(errMsg);
       };
 
@@ -97,6 +135,8 @@ export class SpeechController {
         if (!lastResult || !lastResult[0]) return;
 
         const transcript = lastResult[0].transcript.trim();
+        const confidence = lastResult[0].confidence;
+        AudioLogger.getInstance().logTranscript(transcript, true, confidence);
         this.processTranscript(transcript);
       };
     } catch (e: any) {
@@ -110,8 +150,14 @@ export class SpeechController {
     this.autoRestart = true;
     try {
       this.recognition.start();
+      this.isListening = true;
       return true;
-    } catch {
+    } catch (e: any) {
+      if (e?.name === 'InvalidStateError') {
+        // Recognition already active
+        this.isListening = true;
+        return true;
+      }
       return false;
     }
   }
@@ -214,6 +260,8 @@ export class SpeechController {
   }
 
   private dispatchCommand(command: ParsedVoiceCommand): void {
+    AudioLogger.getInstance().logCommand(command);
+
     if (command.type === 'START_DICTATION') {
       this.setMode('DICTATE');
     }
@@ -249,6 +297,11 @@ export class SpeechController {
   public static parseCommand(text: string): ParsedVoiceCommand {
     const clean = text.trim();
     const lower = clean.toLowerCase();
+
+    // Direct cursor clicks & recenter
+    if (lower === 'click' || lower === 'click here' || lower === 'left click' || lower === 'press' || lower === 'tap') return { type: 'CLICK', rawText: clean };
+    if (lower === 'double click' || lower === 'double tap') return { type: 'DOUBLE_CLICK', rawText: clean };
+    if (lower === 'recenter' || lower === 'recenter cursor' || lower === 'center cursor') return { type: 'RECENTER_CURSOR', rawText: clean };
 
     // Direct system commands
     if (lower === 'scroll down' || lower.startsWith('scroll down') || lower === 'page down') return { type: 'SCROLL_DOWN', rawText: clean };

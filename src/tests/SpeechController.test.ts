@@ -62,4 +62,12 @@ describe('SpeechController - Command Parser', () => {
     expect(SpeechController.parseCommand('confirm').type).toBe('CONFIRM');
     expect(SpeechController.parseCommand('show choices').type).toBe('SHOW_CHOICES');
   });
+
+  it('parses direct cursor action commands', () => {
+    expect(SpeechController.parseCommand('click').type).toBe('CLICK');
+    expect(SpeechController.parseCommand('click here').type).toBe('CLICK');
+    expect(SpeechController.parseCommand('tap').type).toBe('CLICK');
+    expect(SpeechController.parseCommand('double click').type).toBe('DOUBLE_CLICK');
+    expect(SpeechController.parseCommand('recenter cursor').type).toBe('RECENTER_CURSOR');
+  });
 });

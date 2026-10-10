@@ -150,7 +150,13 @@ if (ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER) {
 
 var out = console.log.bind(console);
 
-var err = console.error.bind(console);
+var err = function(msg) {
+  if (typeof msg === 'string' && (msg.startsWith('INFO:') || msg.startsWith('WARNING:') || msg.includes('XNNPACK delegate') || msg.includes('OpenGL') || msg.includes('gl_context') || msg.includes('face_landmarker_graph') || msg.includes('landmark_projection_calculator'))) {
+    console.debug(msg);
+  } else {
+    console.error(msg);
+  }
+};
 
 // end include: shell.js
 // include: preamble.js

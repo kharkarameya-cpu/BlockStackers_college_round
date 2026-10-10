@@ -216,6 +216,22 @@ export class ActiveTabManager {
     }
   }
 
+  /**
+   * Send a general message (e.g. voice command) to the active eligible tab.
+   */
+  public sendToActiveTab(message: any): void {
+    if (!this.activeTabId || !this.isEligible) return;
+    try {
+      chrome.tabs.sendMessage(this.activeTabId, message, () => {
+        if (chrome.runtime.lastError) {
+          // Tab may not be ready or page unloaded
+        }
+      });
+    } catch {
+      // Ignored
+    }
+  }
+
   public getStatus() {
     return {
       activeTabId: this.activeTabId,

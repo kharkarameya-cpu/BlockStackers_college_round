@@ -404,6 +404,33 @@ async function initContentScript() {
       return;
     }
 
+    // 0F. Direct Cursor Actions ("click", "double click", "recenter")
+    if (cmd.type === 'CLICK') {
+      const el = document.elementFromPoint(lastCursorX, lastCursorY) as HTMLElement | null;
+      if (el) {
+        overlay.showClickRipple(lastCursorX, lastCursorY);
+        executeElementClick(el, lastCursorX, lastCursorY);
+        overlay.showVoiceToast('Click', 'COMMAND');
+      }
+      return;
+    }
+
+    if (cmd.type === 'DOUBLE_CLICK') {
+      const el = document.elementFromPoint(lastCursorX, lastCursorY) as HTMLElement | null;
+      if (el) {
+        overlay.showClickRipple(lastCursorX, lastCursorY);
+        el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true, clientX: lastCursorX, clientY: lastCursorY }));
+        overlay.showVoiceToast('Double Click', 'COMMAND');
+      }
+      return;
+    }
+
+    if (cmd.type === 'RECENTER_CURSOR') {
+      cursorEngine.recenter();
+      overlay.showVoiceToast('Cursor Recentered', 'COMMAND');
+      return;
+    }
+
     // 1. Reversible Scroll Commands
     if (cmd.type === 'SCROLL_DOWN') {
       const prevY = window.scrollY;
@@ -670,6 +697,12 @@ async function initContentScript() {
 
         if (message.type === 'PING') {
           sendResponse({ type: 'PONG', ready: true });
+          return false;
+        }
+
+        if (message.type === 'EXECUTE_VOICE_COMMAND' && (message as any).command) {
+          handleVoiceCommand((message as any).command);
+          sendResponse({ executed: true });
           return false;
         }
 

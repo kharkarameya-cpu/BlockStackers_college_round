@@ -98,6 +98,17 @@ export const OnboardingApp: React.FC = () => {
 
       await camera.start(videoEl);
 
+      // Request microphone permission so the extension origin has speech audio enabled
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+        try {
+          const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          micStream.getTracks().forEach((track) => track.stop());
+          console.log('[Handsfree Onboarding] Microphone permission confirmed.');
+        } catch (micErr) {
+          console.warn('[Handsfree Onboarding] Microphone access notice:', micErr);
+        }
+      }
+
       const cursorEngine = new CursorEngine(profile);
       cursorEngineRef.current = cursorEngine;
 

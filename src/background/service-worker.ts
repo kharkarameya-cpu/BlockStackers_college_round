@@ -116,6 +116,20 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
     return true;
   }
 
+  if (message.type === 'VOICE_COMMAND_DETECTED') {
+    tabManager.sendToActiveTab({
+      type: 'EXECUTE_VOICE_COMMAND',
+      command: (message as any).command,
+    });
+    return false;
+  }
+
+  if (message.type === 'START_SPEECH' || message.type === 'STOP_SPEECH') {
+    // Forward speech control to offscreen document
+    chrome.runtime.sendMessage(message).catch(() => {});
+    return false;
+  }
+
   return false;
 });
 

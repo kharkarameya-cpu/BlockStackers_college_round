@@ -22,6 +22,8 @@ export const PopupApp: React.FC = () => {
   const [aiConnected, setAiConnected] = useState<boolean | null>(null);
   const [showAudioLogs, setShowAudioLogs] = useState<boolean>(false);
 
+  const [micStatus, setMicStatus] = useState<'granted' | 'prompt' | 'denied' | 'unknown'>('unknown');
+
   useEffect(() => {
     async function load() {
       const p = await SettingsService.getCalibrationProfile();
@@ -44,7 +46,27 @@ export const PopupApp: React.FC = () => {
       }
     }
     load();
+
+    if (typeof navigator !== 'undefined' && navigator.permissions?.query) {
+      navigator.permissions.query({ name: 'microphone' as PermissionName }).then((res) => {
+        setMicStatus(res.state as any);
+        res.onchange = () => setMicStatus(res.state as any);
+      }).catch(() => setMicStatus('unknown'));
+    }
   }, []);
+
+  const requestMicrophone = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+      setMicStatus('granted');
+      if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+        chrome.runtime.sendMessage({ type: 'START_SPEECH' }).catch(() => {});
+      }
+    } catch {
+      setMicStatus('denied');
+    }
+  };
 
   const togglePause = async () => {
     const nextState = !isPaused;
@@ -154,6 +176,17 @@ export const PopupApp: React.FC = () => {
           {isPaused ? <Play className="w-4 h-4 fill-current" /> : <Power className="w-4 h-4" />}
           {isPaused ? 'Resume Tracking' : 'Pause Tracking (Esc)'}
         </button>
+
+        {/* Microphone Permission Quick Action */}
+        {micStatus !== 'granted' && (
+          <button
+            onClick={requestMicrophone}
+            className="w-full py-2.5 px-3 rounded-xl bg-purple-950/60 hover:bg-purple-900/80 border border-purple-600/50 text-purple-200 text-xs font-medium flex items-center justify-center gap-2 transition-all shadow-md shadow-purple-950/30"
+          >
+            <Mic className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
+            Enable Microphone & Voice Input
+          </button>
+        )}
 
         {/* Controls Card */}
         <div className="glass-panel p-3.5 rounded-xl space-y-3.5 border border-slate-800">
