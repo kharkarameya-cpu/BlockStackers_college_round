@@ -30,13 +30,19 @@ const speech = new SpeechController({
     }).catch(() => {});
   },
   onError: (err) => {
-    console.warn('[Handsfree Audio] Offscreen speech recognition notice:', err);
+    if (err !== 'aborted' && err !== 'no-speech') {
+      console.warn('[Handsfree Audio] Offscreen speech recognition notice:', err);
+    }
   },
 });
 
 if (speech.getIsSupported()) {
-  speech.start();
-  console.log('[Handsfree Audio] Persistent speech recognition started in offscreen host.');
+  try {
+    speech.start();
+    console.log('[Handsfree Audio] Persistent speech recognition started in offscreen host.');
+  } catch (err: any) {
+    console.log('[Handsfree Audio] Speech recognition delayed:', err?.message || err);
+  }
 }
 
 // Listen for speech control messages

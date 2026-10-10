@@ -103,13 +103,43 @@ export const AudioMessageLogger: React.FC<AudioMessageLoggerProps> = ({
     }
   };
 
-  const filteredLogs = logs.filter((log) => {
+  const normalizedLogs = logs.map((raw: any): AudioLogEntry => {
+    let type: AudioLogType = 'STATUS';
+    let level: any = 'info';
+    let text = '';
+    let details = raw?.details;
+
+    if (typeof raw?.type === 'object' && raw?.type !== null) {
+      type = (raw.type.type as AudioLogType) || 'STATUS';
+      level = raw.type.level?.toLowerCase() || 'info';
+      text = raw.type.message || raw.type.text || '';
+      if (raw.type.data || raw.type.details) details = raw.type.data || raw.type.details;
+    } else if (typeof raw?.type === 'string') {
+      type = raw.type as AudioLogType;
+      level = typeof raw?.level === 'string' ? raw.level.toLowerCase() : 'info';
+      text = typeof raw?.text === 'string' ? raw.text : (raw?.message || (typeof raw?.text === 'object' ? JSON.stringify(raw.text) : String(raw?.text || '')));
+    }
+
+    return {
+      id: typeof raw?.id === 'string' ? raw.id : `audio-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      timestamp: typeof raw?.timestamp === 'number' ? raw.timestamp : Date.now(),
+      type,
+      level,
+      text: typeof text === 'string' ? text : JSON.stringify(text || ''),
+      details,
+      source: typeof raw?.source === 'string' ? raw.source : undefined,
+    };
+  });
+
+  const filteredLogs = normalizedLogs.filter((log) => {
     if (selectedType !== 'ALL' && log.type !== selectedType) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
+    const textStr = typeof log.text === 'string' ? log.text : JSON.stringify(log.text || '');
+    const typeStr = typeof log.type === 'string' ? log.type : JSON.stringify(log.type || '');
     return (
-      log.text.toLowerCase().includes(q) ||
-      log.type.toLowerCase().includes(q) ||
+      textStr.toLowerCase().includes(q) ||
+      typeStr.toLowerCase().includes(q) ||
       (log.details && JSON.stringify(log.details).toLowerCase().includes(q))
     );
   });
@@ -272,15 +302,15 @@ export const AudioMessageLogger: React.FC<AudioMessageLoggerProps> = ({
 
                     <span
                       className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${getBadgeStyle(
-                        log.type
+                        typeof log.type === 'string' ? log.type : 'STATUS'
                       )}`}
                     >
-                      {log.type}
+                      {typeof log.type === 'string' ? log.type : String((log.type as any)?.type || 'STATUS')}
                     </span>
 
                     {log.source && (
                       <span className="text-[9px] px-1 py-0.2 rounded bg-slate-900 text-slate-500 border border-slate-800">
-                        {log.source}
+                        {typeof log.source === 'string' ? log.source : JSON.stringify(log.source)}
                       </span>
                     )}
                   </div>
@@ -302,7 +332,11 @@ export const AudioMessageLogger: React.FC<AudioMessageLoggerProps> = ({
 
                 {/* Main text content */}
                 <div className="mt-1 text-[11px] font-sans font-medium text-slate-100 break-words leading-relaxed">
-                  {log.text}
+                  {typeof log.text === 'string'
+                    ? log.text
+                    : typeof log.text === 'object'
+                    ? JSON.stringify(log.text)
+                    : String(log.text || '')}
                 </div>
 
                 {/* Collapsible JSON details view */}

@@ -244,16 +244,6 @@ export class CursorEngine {
     if (!Number.isFinite(rawPxX)) rawPxX = fallbackX;
     if (!Number.isFinite(rawPxY)) rawPxY = fallbackY;
 
-    // Outlier rejection: if coordinate jumps instantly across the screen in one frame
-    const distFromLastRaw = Math.hypot(rawPxX - this.currentState.rawX, rawPxY - this.currentState.rawY);
-    // Only reject if it's an isolated jump and we were tracking smoothly before
-    if (distFromLastRaw > viewWidth * 0.4 && !this.wasTemporarilyLost) {
-      // Very likely a temporary mis-detection, hold previous raw position
-      rawPxX = this.currentState.rawX;
-      rawPxY = this.currentState.rawY;
-      this.currentState.outlierCount += 1;
-    }
-
     this.currentState.rawX = rawPxX;
     this.currentState.rawY = rawPxY;
 

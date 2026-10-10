@@ -52,18 +52,60 @@ export class AudioLogger {
     else this.contextName = 'content';
   }
 
+  public normalizeEntry(raw: any): AudioLogEntry {
+    if (!raw || typeof raw !== 'object') {
+      return {
+        id: `audio-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+        timestamp: Date.now(),
+        type: 'STATUS',
+        level: 'info',
+        text: String(raw || ''),
+      };
+    }
+
+    let type: AudioLogType = 'STATUS';
+    let level: AudioLogLevel = 'info';
+    let text = '';
+    let details = raw.details;
+
+    if (typeof raw.type === 'object' && raw.type !== null) {
+      type = (raw.type.type as AudioLogType) || 'STATUS';
+      level = ((raw.type.level?.toLowerCase() as AudioLogLevel) || 'info');
+      text = raw.type.message || raw.type.text || '';
+      if (raw.type.data || raw.type.details) {
+        details = raw.type.data || raw.type.details;
+      }
+    } else if (typeof raw.type === 'string') {
+      type = raw.type as AudioLogType;
+      level = (typeof raw.level === 'string' ? raw.level.toLowerCase() : 'info') as AudioLogLevel;
+      text = typeof raw.text === 'string' ? raw.text : (raw.message || (typeof raw.text === 'object' ? JSON.stringify(raw.text) : String(raw.text || '')));
+    }
+
+    return {
+      id: typeof raw.id === 'string' ? raw.id : `audio-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      timestamp: typeof raw.timestamp === 'number' ? raw.timestamp : Date.now(),
+      type,
+      level,
+      text: typeof text === 'string' ? text : JSON.stringify(text || ''),
+      details,
+      source: typeof raw.source === 'string' ? raw.source : undefined,
+    };
+  }
+
   private loadPersistedLogs(): void {
     if (typeof chrome !== 'undefined' && chrome.storage?.local) {
       try {
         chrome.storage.local.get(['handsfree_audio_logs'], (res) => {
           if (res && Array.isArray(res.handsfree_audio_logs)) {
-            // Merge existing without duplicating IDs
+            const rawList = res.handsfree_audio_logs.map((item: any) => this.normalizeEntry(item));
             const existingIds = new Set(this.entries.map((e) => e.id));
-            const newEntries = res.handsfree_audio_logs.filter((e: AudioLogEntry) => !existingIds.has(e.id));
+            const newEntries = rawList.filter((e: AudioLogEntry) => !existingIds.has(e.id));
             this.entries = [...newEntries, ...this.entries]
               .sort((a, b) => a.timestamp - b.timestamp)
               .slice(-this.maxEntries);
             this.notifySubscribers(this.entries[this.entries.length - 1]);
+            // Save back sanitized entries
+            this.scheduleStorageSave();
           }
         });
       } catch {
@@ -76,7 +118,7 @@ export class AudioLogger {
     if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
       chrome.runtime.onMessage.addListener((message: any) => {
         if (message && message.type === 'AUDIO_LOG_ENTRY' && message.entry) {
-          const entry = message.entry as AudioLogEntry;
+          const entry = this.normalizeEntry(message.entry);
           if (!this.entries.some((e) => e.id === entry.id)) {
             this.entries.push(entry);
             if (this.entries.length > this.maxEntries) {
@@ -102,20 +144,39 @@ export class AudioLogger {
    * Log a generic audio message
    */
   public log(
-    type: AudioLogType,
-    text: string,
+    typeOrEntry: AudioLogType | { type?: AudioLogType; level?: any; message?: string; text?: string; data?: any; details?: any; source?: AudioLogEntry['source'] },
+    text?: string,
     details?: any,
     level: AudioLogLevel = 'info',
     source?: AudioLogEntry['source']
   ): AudioLogEntry {
+    let actualType: AudioLogType = 'STATUS';
+    let actualLevel: AudioLogLevel = 'info';
+    let actualText = '';
+    let actualDetails = details;
+    let actualSource = source || this.contextName;
+
+    if (typeof typeOrEntry === 'object' && typeOrEntry !== null) {
+      const obj = typeOrEntry as any;
+      actualType = (obj.type as AudioLogType) || 'STATUS';
+      actualLevel = (typeof obj.level === 'string' ? obj.level.toLowerCase() : 'info') as AudioLogLevel;
+      actualText = obj.message || obj.text || '';
+      actualDetails = obj.data || obj.details || details;
+      actualSource = obj.source || source || this.contextName;
+    } else {
+      actualType = (typeof typeOrEntry === 'string' ? typeOrEntry : 'STATUS') as AudioLogType;
+      actualLevel = level;
+      actualText = typeof text === 'string' ? text : (typeof text === 'object' ? JSON.stringify(text) : String(text || ''));
+    }
+
     const entry: AudioLogEntry = {
       id: `audio-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
       timestamp: Date.now(),
-      type,
-      level,
-      text,
-      details,
-      source: source || this.contextName,
+      type: actualType,
+      level: actualLevel,
+      text: actualText,
+      details: actualDetails,
+      source: actualSource,
     };
 
     this.entries.push(entry);

@@ -70,11 +70,7 @@ export class SpeechController {
       this.recognition.onstart = () => {
         this.isListening = true;
         this.notifyState();
-        AudioLogger.getInstance().log({
-          type: 'STATUS',
-          level: 'INFO',
-          message: 'Web Speech API listening started 🎙️',
-        });
+        AudioLogger.getInstance().logStatus('Web Speech API listening started 🎙️');
       };
 
       this.recognition.onend = () => {
@@ -110,22 +106,20 @@ export class SpeechController {
       };
 
       this.recognition.onerror = (event: any) => {
-        if (event.error === 'no-speech') return; // Silence is normal
+        if (event.error === 'no-speech' || event.error === 'aborted') return; // Normal silence or session cycle
         const errMsg = event.error || 'Speech recognition error';
         if (event.error === 'not-allowed') {
-          AudioLogger.getInstance().log({
-            type: 'ERROR',
-            level: 'ERROR',
-            message: 'Microphone permission denied. Click the extension icon to enable microphone.',
-            data: { error: event.error },
-          });
+          AudioLogger.getInstance().logError(
+            'Microphone permission denied. Click the extension icon to enable microphone.',
+            { error: event.error }
+          );
         } else {
-          AudioLogger.getInstance().log({
-            type: 'ERROR',
-            level: 'WARN',
-            message: `Speech recognition notice: ${errMsg}`,
-            data: { error: errMsg },
-          });
+          AudioLogger.getInstance().log(
+            'ERROR',
+            `Speech recognition notice: ${errMsg}`,
+            { error: errMsg },
+            'warn'
+          );
         }
         if (this.callbacks.onError) this.callbacks.onError(errMsg);
       };
