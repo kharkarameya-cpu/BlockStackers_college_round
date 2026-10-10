@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Handsfree Offscreen Tracking Host</title>
+</head>
+<body>
+  <video id="offscreen-video" playsinline autoplay muted width="640" height="480" style="position: fixed; top: -9999px; left: -9999px; width: 640px; height: 480px; opacity: 0; pointer-events: none;"></video>
+  <script type="module" src="/src/offscreen/offscreen.ts"></script>
+</body>
+</html>
