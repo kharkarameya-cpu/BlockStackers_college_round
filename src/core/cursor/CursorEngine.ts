@@ -13,6 +13,7 @@ export interface CursorState {
   y: number;
   rawX: number;
   rawY: number;
+  outlierCount: number;
   uncertaintyRadius: number;
   dwellProgress: number; // 0.0 to 1.0
   isDwelling: boolean;
@@ -64,6 +65,7 @@ export class CursorEngine {
       y: initY,
       rawX: initX,
       rawY: initY,
+      outlierCount: 0,
       uncertaintyRadius: 20,
       dwellProgress: 0,
       isDwelling: false,
@@ -242,11 +244,24 @@ export class CursorEngine {
     if (!Number.isFinite(rawPxX)) rawPxX = fallbackX;
     if (!Number.isFinite(rawPxY)) rawPxY = fallbackY;
 
+    // Outlier rejection: if coordinate jumps instantly across the screen in one frame
+    const distFromLastRaw = Math.hypot(rawPxX - this.currentState.rawX, rawPxY - this.currentState.rawY);
+    // Only reject if it's an isolated jump and we were tracking smoothly before
+    if (distFromLastRaw > viewWidth * 0.4 && !this.wasTemporarilyLost) {
+      // Very likely a temporary mis-detection, hold previous raw position
+      rawPxX = this.currentState.rawX;
+      rawPxY = this.currentState.rawY;
+      this.currentState.outlierCount += 1;
+    }
+
     this.currentState.rawX = rawPxX;
     this.currentState.rawY = rawPxY;
 
-    // One Euro Filter smoothing
-    const smoothed = this.filter.filter(rawPxX, rawPxY, timestamp);
+    // One Euro Filter smoothing - Use local performance.now() to avoid cross-context clock skew
+    const localTimestamp = performance.now();
+    const smoothed = this.filter.filter(rawPxX, rawPxY, localTimestamp);
+    
+    // Final clamp to bounds
     const clampedX = Number.isFinite(smoothed.x) ? Math.max(0, Math.min(viewWidth, smoothed.x)) : rawPxX;
     const clampedY = Number.isFinite(smoothed.y) ? Math.max(0, Math.min(viewHeight, smoothed.y)) : rawPxY;
 

@@ -472,8 +472,20 @@ export class OverlayRenderer {
     }
   }
 
+  private renderLoopId: number | null = null;
+  private targetCursorState: CursorState | null = null;
+
   public updateCursor(state: CursorState): void {
-    if (!this.cursorContainer || !this.cursorDot || !this.uncertaintyHalo) return;
+    this.targetCursorState = state;
+    if (this.renderLoopId === null) {
+      this.renderLoopId = requestAnimationFrame(() => this.renderLoop());
+    }
+  }
+
+  private renderLoop(): void {
+    this.renderLoopId = null;
+    const state = this.targetCursorState;
+    if (!state || !this.cursorContainer || !this.cursorDot || !this.uncertaintyHalo) return;
 
     // Ensure overlay remains attached to DOM if Google/SPA replaced the body
     if (this.hostElement && !document.contains(this.hostElement)) {

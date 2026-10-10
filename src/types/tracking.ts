@@ -95,7 +95,7 @@ export const DEFAULT_CALIBRATION_PROFILE: CalibrationProfile = {
 };
 
 export const DEFAULT_ONE_EURO_PARAMS: OneEuroParams = {
-  minCutoff: 1.0,
-  beta: 0.007,
+  minCutoff: 0.1,   // Lower for less jitter at rest
+  beta: 0.02,       // Higher for less lag during rapid movement
   dCutoff: 1.0,
 };
