@@ -3,6 +3,7 @@ import { CameraController } from '../../core/vision/CameraController';
 import { VisionProcessor } from '../../core/vision/VisionProcessor';
 import { VisionDiagnostics, DiagnosticRenderOptions } from '../../core/vision/VisionDiagnostics';
 import { TrackingResult, CameraDiagnosticMetrics } from '../../types/vision';
+import { CursorEngine, CursorState } from '../../core/cursor/CursorEngine';
 import { AudioMessageLogger } from '../components/AudioMessageLogger';
 import {
   Video,
@@ -30,6 +31,7 @@ export const DiagnosticsApp: React.FC = () => {
   });
 
   const [trackingResult, setTrackingResult] = useState<TrackingResult | null>(null);
+  const [cursorState, setCursorState] = useState<CursorState | null>(null);
   const [activeTabInfo, setActiveTabInfo] = useState<{
     id: number | null;
     url: string;
@@ -57,13 +59,21 @@ export const DiagnosticsApp: React.FC = () => {
   const cameraControllerRef = useRef<CameraController | null>(null);
   const visionProcessorRef = useRef<VisionProcessor | null>(null);
   const diagnosticsRef = useRef<VisionDiagnostics | null>(null);
+  const cursorEngineRef = useRef<CursorEngine | null>(null);
 
   // Initialize controllers
   useEffect(() => {
     const camera = new CameraController(640, 480, 30);
     const vision = new VisionProcessor(camera);
+    const cursor = new CursorEngine();
+    
     cameraControllerRef.current = camera;
     visionProcessorRef.current = vision;
+    cursorEngineRef.current = cursor;
+
+    cursor.setListeners((state) => {
+      setCursorState(state);
+    });
 
     const unsubscribe = camera.subscribe((m) => {
       setMetrics({ ...m });
@@ -116,6 +126,36 @@ export const DiagnosticsApp: React.FC = () => {
       // Step 3: Start frame processing
       vision.start(videoEl, (result, rawLandmarks) => {
         setTrackingResult(result);
+
+        // Process telemetry to display cursor smoothing data
+        cursorEngineRef.current?.processTelemetry({
+          pose: {
+            yaw: result.yaw,
+            pitch: result.pitch,
+            roll: result.roll,
+            confidence: result.confidence,
+            faceDetected: result.faceDetected,
+            timestamp: result.timestamp,
+          },
+          uncertaintyRadius: result.quality === 'OPTIMAL' ? 14 : result.quality === 'DEGRADED' ? 24 : 38,
+          isTrackingStable: result.quality === 'OPTIMAL',
+          trackingLost: !result.handDetected && !result.faceDetected,
+          trackingState: result.trackingState,
+          isDwellAllowed: result.trackingState === 'TRACKING',
+          faceDetected: result.faceDetected,
+          faceStatus: result.faceStatus,
+          handStatus: result.handStatus,
+          faceError: result.faceError,
+          handError: result.handError,
+          activeSource: result.activeSource,
+          handDetected: result.handDetected,
+          handsCount: result.handsDetected,
+          activeGesture: result.activeGesture,
+          hands: result.hands,
+          cursorNormalizedX: result.cursorNormalizedX,
+          cursorNormalizedY: result.cursorNormalizedY,
+          isPinching: result.activeHand?.isPinching,
+        });
 
         if (diagnosticsRef.current && videoEl) {
           diagnosticsRef.current.render(videoEl, rawLandmarks, result, options);
@@ -429,21 +469,27 @@ export const DiagnosticsApp: React.FC = () => {
 
             <div className="space-y-2 text-xs font-mono">
               <div className="flex justify-between text-[11px]">
-                <span className="text-slate-400 font-sans">Normalized Viewport X</span>
+                <span className="text-slate-400 font-sans">Raw Cursor (X, Y)</span>
                 <span className="text-cyan-400">
-                  {trackingResult?.cursorNormalizedX?.toFixed(3) || trackingResult?.normalizedX?.toFixed(3) || '0.500'}
+                  {cursorState ? `${Math.round(cursorState.rawX)}, ${Math.round(cursorState.rawY)}` : '0, 0'}
                 </span>
               </div>
               <div className="flex justify-between text-[11px]">
-                <span className="text-slate-400 font-sans">Normalized Viewport Y</span>
+                <span className="text-slate-400 font-sans">Filtered Cursor (X, Y)</span>
                 <span className="text-cyan-400">
-                  {trackingResult?.cursorNormalizedY?.toFixed(3) || trackingResult?.normalizedY?.toFixed(3) || '0.500'}
+                  {cursorState ? `${Math.round(cursorState.x)}, ${Math.round(cursorState.y)}` : '0, 0'}
                 </span>
               </div>
               <div className="flex justify-between text-[11px]">
                 <span className="text-slate-400 font-sans">Confidence Score</span>
                 <span className="text-emerald-400 font-bold">
                   {trackingResult ? `${Math.round(trackingResult.confidence * 100)}%` : '0%'}
+                </span>
+              </div>
+              <div className="flex justify-between text-[11px]">
+                <span className="text-slate-400 font-sans">Outliers Rejected</span>
+                <span className="text-amber-400 font-bold">
+                  {cursorState?.outlierCount || 0}
                 </span>
               </div>
             </div>

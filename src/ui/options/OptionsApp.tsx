@@ -623,6 +623,51 @@ export const OptionsApp: React.FC = () => {
                 className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
               />
             </div>
+            
+            {/* Smoothing Preset */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-300 font-medium">Cursor Smoothing</span>
+                <span className="text-cyan-400 font-mono">
+                  {filterParams.minCutoff >= 0.5 ? 'Low' : filterParams.minCutoff >= 0.1 ? 'Balanced' : 'High'}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFilterParams({ ...filterParams, minCutoff: 0.5, beta: 0.05 })}
+                  className={`flex-1 py-1.5 text-xs rounded-lg transition-colors border ${
+                    filterParams.minCutoff >= 0.5
+                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Low
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterParams({ ...filterParams, minCutoff: 0.1, beta: 0.02 })}
+                  className={`flex-1 py-1.5 text-xs rounded-lg transition-colors border ${
+                    filterParams.minCutoff >= 0.1 && filterParams.minCutoff < 0.5
+                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Balanced
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterParams({ ...filterParams, minCutoff: 0.01, beta: 0.005 })}
+                  className={`flex-1 py-1.5 text-xs rounded-lg transition-colors border ${
+                    filterParams.minCutoff < 0.1
+                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  High
+                </button>
+              </div>
+            </div>
           </div>
         </section>
 
