@@ -30,7 +30,10 @@ async function startOffscreenLoop() {
           uncertaintyRadius:
             result.quality === 'OPTIMAL' ? 14 : result.quality === 'DEGRADED' ? 24 : 38,
           isTrackingStable: result.quality === 'OPTIMAL',
-          trackingLost: !result.handDetected && !result.faceDetected,
+          trackingLost:
+            vision.getTrackingMode() === 'HAND_ONLY'
+              ? !result.handDetected
+              : !result.handDetected && !result.faceDetected,
           trackingState: result.trackingState,
           isDwellAllowed: result.trackingState === 'TRACKING',
           faceDetected: result.faceDetected,

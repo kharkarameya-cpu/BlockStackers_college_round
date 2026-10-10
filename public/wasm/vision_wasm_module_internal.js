@@ -8351,7 +8351,7 @@ function custom_emscripten_dbgn(str, len) {
   } else {
     if (typeof (custom_dbg) === "undefined") {
       function custom_dbg(text) {
-        console.warn.apply(console, arguments);
+        console.debug.apply(console, arguments);
       }
     }
     custom_dbg(UTF8ToString(str, len));
@@ -8819,5 +8819,5 @@ if (runtimeInitialized) {
 }
 
 // Export using a UMD style export, or ES6 exports if selected
-globalThis.ModuleFactory = ModuleFactory; globalThis.custom_dbg = console.warn.bind(console); export default ModuleFactory;
+globalThis.ModuleFactory = ModuleFactory; globalThis.custom_dbg = console.debug.bind(console); export default ModuleFactory;
 

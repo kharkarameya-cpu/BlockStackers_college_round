@@ -92,6 +92,7 @@ export const OnboardingApp: React.FC = () => {
       cameraControllerRef.current = camera;
 
       const vision = new VisionProcessor();
+      vision.setTrackingMode('HAND_ONLY');
       visionProcessorRef.current = vision;
       await vision.initialize();
 

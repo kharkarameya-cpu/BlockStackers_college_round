@@ -116,14 +116,25 @@ export class VisionProcessor {
   /**
    * Initialize local MediaPipe FaceLandmarker and HandLandmarker independently
    * with bundled WASM and local .task models.
-   * If one model fails, the other remains fully functional.
+   * Only loads models required by the current trackingMode.
    */
   public async initialize(): Promise<void> {
     if (this.isInitializing) return;
-    if (this.faceLandmarker && this.handLandmarker) return;
+
+    const needFace = this.trackingMode !== 'HAND_ONLY';
+    const needHand = this.trackingMode !== 'HEAD_ONLY';
+
+    if ((!needFace || this.faceLandmarker) && (!needHand || this.handLandmarker)) {
+      return;
+    }
 
     this.isInitializing = true;
     try {
+      // Direct MediaPipe C++ internal logs to console.debug to avoid false-positive Chrome extension warnings
+      if (typeof globalThis !== 'undefined') {
+        (globalThis as any).custom_dbg = console.debug.bind(console);
+      }
+
       let wasmPath = '/wasm';
       let faceModelAssetPath = '/models/face_landmarker.task';
       let handModelAssetPath = '/models/hand_landmarker.task';
@@ -134,11 +145,11 @@ export class VisionProcessor {
         handModelAssetPath = chrome.runtime.getURL('models/hand_landmarker.task');
       }
 
-      console.log('[Handsfree Vision] Loading MediaPipe vision tasks from:', wasmPath);
+      console.log('[Handsfree Vision] Loading MediaPipe vision tasks from:', wasmPath, `(mode: ${this.trackingMode})`);
       const vision = await FilesetResolver.forVisionTasks(wasmPath);
 
-      // 1. Initialize FaceLandmarker independently
-      if (!this.faceLandmarker) {
+      // 1. Initialize FaceLandmarker independently (if required by trackingMode)
+      if (needFace && !this.faceLandmarker) {
         this.faceStatus = 'LOADING';
         try {
           this.faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
@@ -180,8 +191,8 @@ export class VisionProcessor {
         }
       }
 
-      // 2. Initialize HandLandmarker independently
-      if (!this.handLandmarker) {
+      // 2. Initialize HandLandmarker independently (if required by trackingMode)
+      if (needHand && !this.handLandmarker) {
         this.handStatus = 'LOADING';
         try {
           this.handLandmarker = await HandLandmarker.createFromOptions(vision, {
@@ -223,9 +234,9 @@ export class VisionProcessor {
         }
       }
 
-      if (!this.faceLandmarker && !this.handLandmarker) {
+      if (needHand && !this.handLandmarker && (!needFace || !this.faceLandmarker)) {
         throw new Error(
-          `Failed to initialize both vision models. Face: ${this.faceError || 'failed'}, Hand: ${this.handError || 'failed'}`
+          `Failed to initialize vision models for mode ${this.trackingMode}. Face: ${this.faceError || 'disabled'}, Hand: ${this.handError || 'failed'}`
         );
       }
     } finally {

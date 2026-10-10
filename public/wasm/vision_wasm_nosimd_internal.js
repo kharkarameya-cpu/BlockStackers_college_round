@@ -8340,7 +8340,7 @@ function custom_emscripten_dbgn(str, len) {
   } else {
     if (typeof (custom_dbg) === "undefined") {
       function custom_dbg(text) {
-        console.warn.apply(console, arguments);
+        console.debug.apply(console, arguments);
       }
     }
     custom_dbg(UTF8ToString(str, len));
